@@ -1,5 +1,5 @@
 from pydantic import BaseModel, HttpUrl
-
+from typing import List
 
 class DownloadRequest(BaseModel):
     url: HttpUrl
@@ -8,6 +8,6 @@ class DownloadRequest(BaseModel):
 
 class DownloadResponse(BaseModel):
     status: str
-    download_url: str = None
+    download_url: List[str] = None
     message: str = None
     media_type: str

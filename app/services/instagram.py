@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 from app.models.schemas import DownloadResponse
 from app.services.downloader import MediaDownloader
 from app.services.storage import S3StorageService
+from app.utils.dir_utilities import find_media_files, clean_directory
 # from app.utils.exceptions import DownloadException
 
 
@@ -32,45 +33,54 @@ class InstagramDownloader(MediaDownloader):
             parsed = urlparse(url)
             path = parsed.path.strip('/')
             shortcode = path.split('/')[-1]
+            print(url)
             print(shortcode)
             L = instaloader.Instaloader(
-                dirname_pattern='temp',
+                dirname_pattern=f'temp/{shortcode}',
                 filename_pattern='{shortcode}',
                 save_metadata=False,
                 download_video_thumbnails=False,
                 download_geotags=False,
                 download_comments=False,
-                compress_json=False
+                compress_json=False,
+                quiet=True,  # Hide verbose logs
+                download_videos=True
             )
-
-            L.login("ml.marcoo", "968774654132As!")
-
+            username = "ml.marcoo"
+            L.load_session_from_file(username, "/root/.config/instaloader/session-ml.marcoo")
+            print(L.context.username)
+            print(L.context)
             post = instaloader.Post.from_shortcode(L.context, shortcode)
             print(post)
 
             # Determine media type and download
             if post.is_video:
+                print("video")
                 L.download_post(post, target='temp')
-                media_path = f"temp/{shortcode}.mp4"
                 media_type = "video"
             else:
+                print("img")
                 L.download_post(post, target='temp')
-                # Get the first image (for carousel posts)
-                media_path = f"temp/{shortcode}.jpg"
                 media_type = "image"
             
+            media_files = find_media_files(f"temp/{shortcode}/")
+            download_urls = []
             # Generate S3 object name
-            object_name = f"instagram/{path.split('/')[-1]}.{'mp4' if 'video' in media_type else 'jpg'}"
+            for media_file in media_files:
+                object_name = f"instagram/{shortcode}/{media_file.split('/')[-1]}"
+                print(media_file)
+                print(object_name)
+                # Upload to S3
+                download_url = self.storage_service.upload_file(
+                    media_file, object_name
+                )
+                download_urls.append(download_url)
             
-            # Upload to S3
-            download_url = self.storage_service.upload_file(
-                media_path, object_name
-            )
+            clean_directory(f'temp/{shortcode}')
 
-            
             return DownloadResponse(
                 status="success",
-                download_url=download_url,
+                download_url=download_urls,
                 media_type="video" if 'video' in media_type else "image"
             )
         except Exception as e:

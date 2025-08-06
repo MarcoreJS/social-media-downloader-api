@@ -33,4 +33,5 @@ async def download_media(request: DownloadRequest):
     try:
         return downloader.download(url)
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=400, detail=str(e))

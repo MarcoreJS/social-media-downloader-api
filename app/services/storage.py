@@ -18,8 +18,13 @@ class S3StorageService:
         """Upload a file to S3 bucket"""
         try:
             self.s3_client.upload_file(file_path, self.bucket_name, object_name)
-            url = f"https://{self.bucket_name}.s3.{settings.aws_region}.amazonaws.com/{object_name}"
-            return url
+            # url = f"https://{self.bucket_name}.s3.{settings.aws_region}.amazonaws.com/{object_name}"
+            presigned_url = self.s3_client.generate_presigned_url(
+                'get_object',
+                Params={'Bucket': self.bucket_name, 'Key': object_name},
+                ExpiresIn=300
+            )
+            return presigned_url
         except ClientError as e:
             raise Exception(f"S3 upload failed: {str(e)}")
 
