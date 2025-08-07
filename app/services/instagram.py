@@ -2,12 +2,18 @@ import re
 import requests
 import instaloader
 from typing import Optional
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 from app.models.schemas import DownloadResponse
 from app.services.downloader import MediaDownloader
 from app.services.storage import S3StorageService
 from app.utils.dir_utilities import find_media_files, clean_directory
 # from app.utils.exceptions import DownloadException
+
+def get_story_media_id(url):
+    parsed_url = urlparse(url)
+    query_params = parse_qs(parsed_url.query)
+    story_media_id = query_params.get('story_media_id', [None])[0]
+    return story_media_id
 
 
 class InstagramDownloader(MediaDownloader):
@@ -15,7 +21,7 @@ class InstagramDownloader(MediaDownloader):
         self.storage_service = storage_service
         self.session = requests.Session()
         self.instagram_pattern = re.compile(
-            r'(https?://)?(www\.)?instagram\.com/(p|reel|tv)/[a-zA-Z0-9_-]+/?'
+            r'(https?://)?(www\.)?instagram\.com/(p|reel|tv|s|stories)/[a-zA-Z0-9_-]+/?'
         )
 
     def supports(self, url: str) -> bool:
@@ -33,6 +39,8 @@ class InstagramDownloader(MediaDownloader):
             parsed = urlparse(url)
             path = parsed.path.strip('/')
             shortcode = path.split('/')[-1]
+            ig_type = path.split('/')[0]
+
             print(url)
             print(shortcode)
             L = instaloader.Instaloader(
@@ -46,22 +54,42 @@ class InstagramDownloader(MediaDownloader):
                 quiet=True,  # Hide verbose logs
                 download_videos=True
             )
+
             username = "ml.marcoo"
-            L.load_session_from_file(username, "/root/.config/instaloader/session-ml.marcoo")
+            # L.load_session_from_file(username, "/root/.config/instaloader/session-ml.marcoo")
+            L.load_session_from_file(username, "/Users/marcomercadolugo/Documents/code-projects/sm-downloader/api/session-ml.marcoo")
             print(L.context.username)
             print(L.context)
-            post = instaloader.Post.from_shortcode(L.context, shortcode)
-            print(post)
-
-            # Determine media type and download
-            if post.is_video:
-                print("video")
-                L.download_post(post, target='temp')
-                media_type = "video"
+            
+            if ig_type == 's':
+                # NOT WORKING
+                print("highlights")
+                media_id = get_story_media_id(url)
+                print(media_id)
+                post = instaloader.Post.from_mediaid(L.context, media_id)
+                L.download_post(post, target=f"story_{media_id}")
+            elif ig_type == 'stories':
+                # NOT WORKING
+                print("story")
+                stories_owner = path.split('/')[1]
+                print(stories_owner)
+                profile = instaloader.Profile.from_username(L.context, stories_owner)
+                print(profile.username)
+                print(profile.userid)
+                L.download_stories(userids=[profile.userid])
             else:
-                print("img")
-                L.download_post(post, target='temp')
-                media_type = "image"
+                print("post")
+                post = instaloader.Post.from_shortcode(L.context, shortcode)
+                
+                # Determine media type and download
+                if post.is_video:
+                    print("video")
+                    L.download_post(post, target='temp')
+                    media_type = "video"
+                else:
+                    print("img")
+                    L.download_post(post, target='temp')
+                    media_type = "image"
             
             media_files = find_media_files(f"temp/{shortcode}/")
             download_urls = []
