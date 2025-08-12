@@ -14,6 +14,8 @@ app.include_router(download.router)
 origins = [
     "http://localhost:5173",
     "http://localhost:4173",
+    "https://main.d1uaj1xrcxf3pb.amplifyapp.com",
+    "https://contentkeep.io",
 ]
 
 app.add_middleware(
@@ -27,4 +29,8 @@ app.add_middleware(
 
 @app.get("/health")
 async def health_check():
+    return {"status": "healthy"}
+
+@app.get("/")
+async def root_health_check():
     return {"status": "healthy"}
