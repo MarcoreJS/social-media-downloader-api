@@ -41,7 +41,7 @@ class InstagramDownloader(MediaDownloader):
         """Check if the URL is an Instagram post"""
         return bool(self.instagram_pattern.match(url))
 
-    def download_legacy(self, url: str, download_dir: str) -> DownloadResponse:
+    def download_legacy(self, url: str, unique_id_str: str) -> DownloadResponse:
         """Download Instagram media and upload to S3"""
         if not self.supports(url):
             raise Exception("Unsupported Instagram URL")
@@ -53,6 +53,8 @@ class InstagramDownloader(MediaDownloader):
             path = parsed.path.strip('/')
             shortcode = path.split('/')[-1]
             ig_type = path.split('/')[0]
+            download_dir = f'temp/instagram/{unique_id_str}/{shortcode}'
+            os.makedirs(download_dir, exist_ok=True)
 
             print(url)
             print(shortcode)
@@ -64,7 +66,7 @@ class InstagramDownloader(MediaDownloader):
                 download_geotags=False,
                 download_comments=False,
                 compress_json=False,
-                quiet=True,  # Hide verbose logs
+                quiet=False,  # Hide verbose logs
                 download_videos=True
             )
 
@@ -72,8 +74,13 @@ class InstagramDownloader(MediaDownloader):
             L.load_session_from_file(username, "/root/.config/instaloader/session-ml.marcoo")
             # L.load_session_from_file(username, "/Users/marcomercadolugo/Documents/code-projects/sm-downloader/api/session-ml.marcoo")
             print(L.context.username)
+            print(f"Session loaded successfully for: {L.context.username}")
+    
+            # Test the session with a simple request
+            test_profile = instaloader.Profile.from_username(L.context, username)
+            print(f"Session is valid - can access profile: {test_profile.username}")
             # print(L.context)
-            
+
             if ig_type == 's':
                 # NOT WORKING
                 print("highlights")
@@ -83,27 +90,32 @@ class InstagramDownloader(MediaDownloader):
                 L.download_post(post, target=f"story_{media_id}")
             elif ig_type == 'stories':
                 # NOT WORKING
-                print("story")
+                target_username = path.split('/')[1]
+                print(f"story {target_username}")
                 stories_info = []
-                profile = instaloader.Profile.from_username(L.context, 'ningning.aespa_')
+                profile = instaloader.Profile.from_username(L.context, target_username)
+                stories = L.get_stories(userids=[profile.userid])
+                print(profile.userid)
 
-                for story in L.get_stories(userids=[profile.userid]):
-                    for item in story.get_items():
-                        try:
-                            self.loader.download_storyitem(item, target=f'temp/{shortcode}')
-                            stories_downloaded += 1
-                            stories_info.append({
-                                'date': item.date_utc.isoformat(),
-                                'is_video': item.is_video,
-                                'typename': item.typename
-                            })
-                        
-                        except Exception as item_error:
-                            print(f"Failed to download story item: {item_error}")
+                L.download_stories(userids=[profile.userid])
+                # for story in L.get_stories(userids=[profile.userid]):
+                #     print(story.get_items())
+                #     for item in story.get_items():
+                #         try:
+                #             print(item)
+                #             self.loader.download_storyitem(item, target=f'temp/{shortcode}')
+                #             stories_downloaded += 1
+                #             stories_info.append({
+                #                 'date': item.date_utc.isoformat(),
+                #                 'is_video': item.is_video,
+                #                 'typename': item.typename
+                #             })
+                #             print(stories_info)
+                #         except Exception as item_error:
+                #             print(f"Failed to download story item: {item_error}")
             else:
                 print("post")
                 post = instaloader.Post.from_shortcode(L.context, shortcode)
-                
                 # Determine media type and download
                 if post.is_video:
                     print("video")
@@ -177,38 +189,36 @@ class InstagramDownloader(MediaDownloader):
                 print(f"Title: {info.get('title', 'N/A')}")
                 print(f"Post Type: {info.get('_type', 'N/A')}")
 
-                # Download the video
-                if post_type == 'playlist':
-                    print("Try with instaloader")
-                    download_dir = f'temp/instagram/{unique_id_str}/{post_id}'
-                    download_urls = self.download_legacy(url, download_dir)
-                    clean_directory(f"temp/instagram/{unique_id_str}")
-                    return DownloadResponse(
-                        status="success",
-                        download_url=download_urls,
-                        media_type="image"
-                    )
-                else:
-                    # Single item, download normally
-                    ydl.download([url])
+                # Single item, download normally
+                ydl.download([url])
+            
+                # Return the path to downloaded file
                 
-                    # Return the path to downloaded file
-                    
-                    filename = ydl.prepare_filename(info)
+                filename = ydl.prepare_filename(info)
 
-                    object_name = f'temp/instagram/{unique_id_str}.mp4'
-                    download_url = self.storage_service.upload_file(
-                        filename, object_name
-                    )
-                    media_type = "video"
-                    clean_directory(f"temp/instagram/{unique_id_str}")
-                    
-                    return DownloadResponse(
-                        status="success",
-                        download_url=[download_url],
-                        media_type="video" if 'video' in media_type else "image"
-                    )
+                object_name = f'temp/instagram/{unique_id_str}.mp4'
+                download_url = self.storage_service.upload_file(
+                    filename, object_name
+                )
+                media_type = "video"
+                clean_directory(f"temp/instagram/{unique_id_str}")
+                
+                return DownloadResponse(
+                    status="success",
+                    download_url=[download_url],
+                    media_type="video" if 'video' in media_type else "image"
+                )
                     
         except Exception as e:
-            print(f"Error downloading video: {str(e)}")
-            raise Exception(f"Error downloading video: {str(e)}")
+            print(f"yt-dl Error downloading video: {str(e)}")
+            print(f"Fallback to instaloader")
+            # download_dir = f'temp/instagram/{unique_id_str}/{post_id}'
+            download_urls = self.download_legacy(url, unique_id_str)
+            print(download_urls)
+            # clean_directory(f"temp/instagram/{unique_id_str}")
+            return DownloadResponse(
+                status="success",
+                download_url=download_urls,
+                media_type="image"
+            )
+            # raise Exception(f"Error downloading video: {str(e)}")
