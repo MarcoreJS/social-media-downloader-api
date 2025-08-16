@@ -22,7 +22,27 @@ class TikTokDownloader(MediaDownloader):
         self.tiktok_patterns = [
             r'^https://www\.tiktok\.com/@[^/]+/video/\d+',  # Standard TikTok video URL
             r'^https://vm\.tiktok\.com/[^/]+/',             # TikTok vm short URL
-            r'^https://vt\.tiktok\.com/[^/]+/'              # TikTok vt short URL
+            r'^https://vt\.tiktok\.com/[^/]+/',             # TikTok vt short URL
+            # Standard YouTube video URLs
+            r'^https?://(www\.)?youtube\.com/watch\?v=([a-zA-Z0-9_-]{11})(&.*)?',
+            
+            # YouTube shortened URLs (youtu.be)
+            r'^https?://(www\.)?youtu\.be/([a-zA-Z0-9_-]{11})(\?.*)?',
+            
+            # YouTube Shorts URLs
+            r'^https?://(www\.)?youtube\.com/shorts/([a-zA-Z0-9_-]{11})(\?.*)?',
+            
+            # YouTube embed URLs
+            r'^https?://(www\.)?youtube\.com/embed/([a-zA-Z0-9_-]{11})(\?.*)?',
+            
+            # YouTube mobile URLs (m.youtube.com)
+            r'^https?://m\.youtube\.com/watch\?v=([a-zA-Z0-9_-]{11})(&.*)?',
+            
+            # YouTube mobile shorts
+            r'^https?://m\.youtube\.com/shorts/([a-zA-Z0-9_-]{11})(\?.*)?',
+            
+            # YouTube nocookie embed URLs
+            r'^https?://(www\.)?youtube-nocookie\.com/embed/([a-zA-Z0-9_-]{11})(\?.*)?'
         ]
         self.download_log = []
         
@@ -70,6 +90,15 @@ class TikTokDownloader(MediaDownloader):
                 # Extract video info
                 info = ydl.extract_info(url, download=False)
                 print(f'INFO: {info}')
+                duration = info.get('duration')
+                print(f'Duration {duration} seconds')
+
+                if 900 < duration:
+                    return DownloadResponse(
+                        status='FAILED',
+                        download_url=[],
+                        message= f"Videos longer than 15 min aren't allowed."
+                    )  
                 # Download the video
                 ydl.download([url])
                 
@@ -92,7 +121,7 @@ class TikTokDownloader(MediaDownloader):
                     
         except Exception as e:
             print(f"Error downloading video: {str(e)}")
-            raise Exception(f"Error downloading video: {str(e)}")
+
         
     def get_post_data(self, url):
         """Extract post data from TikTok URL"""
