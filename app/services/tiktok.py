@@ -6,7 +6,7 @@ import json
 import os
 from typing import Optional
 from urllib.parse import urlparse, parse_qs
-from app.models.schemas import DownloadResponse
+from app.models.schemas import DownloadResponse, DownloadUrl
 from app.services.downloader import MediaDownloader
 from app.services.storage import S3StorageService
 from app.utils.dir_utilities import clean_directory, find_media_files
@@ -78,16 +78,16 @@ class TikTokDownloader(MediaDownloader):
                 filename = ydl.prepare_filename(info)
 
                 object_name = f'temp/tiktok/{unique_id_str}.mp4'
-                download_url = self.storage_service.upload_file(
+                dwn_url_str = self.storage_service.upload_file(
                     filename, object_name
                 )
-                media_type = "video"
+                download_url = DownloadUrl(url=dwn_url_str, media_type='video')
+                
                 clean_directory(f"temp/tiktok/{unique_id_str}")
                 
                 return DownloadResponse(
                     status="success",
-                    download_url=[download_url],
-                    media_type="video" if 'video' in media_type else "image"
+                    download_url=[download_url]
                 )
                     
         except Exception as e:

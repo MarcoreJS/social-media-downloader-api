@@ -13,6 +13,7 @@ app.include_router(download.router)
 
 origins = [
     "http://localhost:5173",
+    "http://192.168.100.24:5173",
     "http://localhost:4173",
     "https://main.d1uaj1xrcxf3pb.amplifyapp.com",
     "https://contentkeep.io",

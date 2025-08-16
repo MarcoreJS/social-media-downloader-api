@@ -5,9 +5,11 @@ class DownloadRequest(BaseModel):
     url: HttpUrl
     media_type: str = None  # Optional, can be auto-detected
 
+class DownloadUrl(BaseModel):
+    url: str
+    media_type: str
 
 class DownloadResponse(BaseModel):
     status: str
-    download_url: List[str] = None
+    download_url: List[DownloadUrl] = None
     message: str = None
-    media_type: str

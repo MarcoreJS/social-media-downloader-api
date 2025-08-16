@@ -31,13 +31,15 @@ RUN apt-get update && apt-get install -y \
     libxtst6 \
     xdg-utils
 
+RUN apt-get install -y ffmpeg
+
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy project
 COPY . .
-COPY session-ml.marcoo /root/.config/instaloader/session-ml.marcoo
+COPY session-contentkeep.io /root/.config/instaloader/session-contentkeep.io
 # Expose the port the app runs on
 EXPOSE 8000
 

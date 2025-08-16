@@ -7,7 +7,7 @@ import yt_dlp
 import instaloader
 from typing import Optional
 from urllib.parse import urlparse, parse_qs
-from app.models.schemas import DownloadResponse
+from app.models.schemas import DownloadResponse, DownloadUrl
 from app.services.downloader import MediaDownloader
 from app.services.storage import S3StorageService
 from app.utils.dir_utilities import find_media_files, clean_directory
@@ -41,7 +41,7 @@ class InstagramDownloader(MediaDownloader):
         """Check if the URL is an Instagram post"""
         return bool(self.instagram_pattern.match(url))
 
-    def download_legacy(self, url: str, unique_id_str: str) -> DownloadResponse:
+    def download_legacy(self, url: str, unique_id_str: str) -> List[DownloadUrl]:
         """Download Instagram media and upload to S3"""
         if not self.supports(url):
             raise Exception("Unsupported Instagram URL")
@@ -70,9 +70,9 @@ class InstagramDownloader(MediaDownloader):
                 download_videos=True
             )
 
-            username = "ml.marcoo"
-            L.load_session_from_file(username, "/root/.config/instaloader/session-ml.marcoo")
-            # L.load_session_from_file(username, "/Users/marcomercadolugo/Documents/code-projects/sm-downloader/api/session-ml.marcoo")
+            username = "contentkeep.io"
+            L.load_session_from_file(username, "/root/.config/instaloader/session-contentkeep.io")
+            # L.load_session_from_file(username, "/Users/marcomercadolugo/Documents/code-projects/sm-downloader/api/session-contentkeep.io")
             print(L.context.username)
             print(f"Session loaded successfully for: {L.context.username}")
     
@@ -92,27 +92,11 @@ class InstagramDownloader(MediaDownloader):
                 # NOT WORKING
                 target_username = path.split('/')[1]
                 print(f"story {target_username}")
-                stories_info = []
                 profile = instaloader.Profile.from_username(L.context, target_username)
-                stories = L.get_stories(userids=[profile.userid])
                 print(profile.userid)
 
                 L.download_stories(userids=[profile.userid])
-                # for story in L.get_stories(userids=[profile.userid]):
-                #     print(story.get_items())
-                #     for item in story.get_items():
-                #         try:
-                #             print(item)
-                #             self.loader.download_storyitem(item, target=f'temp/{shortcode}')
-                #             stories_downloaded += 1
-                #             stories_info.append({
-                #                 'date': item.date_utc.isoformat(),
-                #                 'is_video': item.is_video,
-                #                 'typename': item.typename
-                #             })
-                #             print(stories_info)
-                #         except Exception as item_error:
-                #             print(f"Failed to download story item: {item_error}")
+
             else:
                 print("post")
                 post = instaloader.Post.from_shortcode(L.context, shortcode)
@@ -120,26 +104,30 @@ class InstagramDownloader(MediaDownloader):
                 if post.is_video:
                     print("video")
                     L.download_post(post, target=download_dir)
-                    media_type = "video"
                 else:
                     print("img")
                     L.download_post(post, target=download_dir)
-                    media_type = "image"
             
             media_files = find_media_files(download_dir)
             download_urls = []
             # Generate S3 object name
             for media_file in media_files:
                 object_name = f"instagram/{shortcode}/{media_file.split('/')[-1]}"
+                extension = media_file.split('.')[-1]
+                if extension == 'mp4':
+                    media_type = 'video'
+                else:
+                    media_type = 'image'
                 print(media_file)
                 print(object_name)
                 # Upload to S3
-                download_url = self.storage_service.upload_file(
+                dwn_url = self.storage_service.upload_file(
                     media_file, object_name
                 )
+                download_url = DownloadUrl(url=dwn_url, media_type=media_type)
                 download_urls.append(download_url)
             
-            # clean_directory(f'temp/{shortcode}')
+            # clean_directory(f'temp/instagram/{shortcode}')
 
             return download_urls
         except Exception as e:
@@ -202,11 +190,12 @@ class InstagramDownloader(MediaDownloader):
                 )
                 media_type = "video"
                 clean_directory(f"temp/instagram/{unique_id_str}")
+
+                f_download_url = DownloadUrl(url=download_url, media_type=media_type)
                 
                 return DownloadResponse(
                     status="success",
-                    download_url=[download_url],
-                    media_type="video" if 'video' in media_type else "image"
+                    download_url=[f_download_url],
                 )
                     
         except Exception as e:
@@ -215,10 +204,9 @@ class InstagramDownloader(MediaDownloader):
             # download_dir = f'temp/instagram/{unique_id_str}/{post_id}'
             download_urls = self.download_legacy(url, unique_id_str)
             print(download_urls)
-            # clean_directory(f"temp/instagram/{unique_id_str}")
+            clean_directory(f"temp/instagram/{unique_id_str}")
             return DownloadResponse(
                 status="success",
-                download_url=download_urls,
-                media_type="image"
+                download_url=download_urls
             )
             # raise Exception(f"Error downloading video: {str(e)}")
