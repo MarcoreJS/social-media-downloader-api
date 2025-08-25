@@ -31,6 +31,7 @@ class TikTokDownloader(MediaDownloader):
             
             # YouTube Shorts URLs
             r'^https?://(www\.)?youtube\.com/shorts/([a-zA-Z0-9_-]{11})(\?.*)?',
+            r'^https?://x\.com/shorts/([a-zA-Z0-9_-]{11})(\?.*)?',
             
             # YouTube embed URLs
             r'^https?://(www\.)?youtube\.com/embed/([a-zA-Z0-9_-]{11})(\?.*)?',
@@ -42,7 +43,13 @@ class TikTokDownloader(MediaDownloader):
             r'^https?://m\.youtube\.com/shorts/([a-zA-Z0-9_-]{11})(\?.*)?',
             
             # YouTube nocookie embed URLs
-            r'^https?://(www\.)?youtube-nocookie\.com/embed/([a-zA-Z0-9_-]{11})(\?.*)?'
+            r'^https?://(www\.)?youtube-nocookie\.com/embed/([a-zA-Z0-9_-]{11})(\?.*)?',
+            # Twitter patterns
+            r'^https?://(www\.)?(twitter\.com|x\.com)/[a-zA-Z0-9_]+/status/\d+/?(\?.*)?$',
+            r'^https?://(www\.)?(twitter\.com|x\.com)/[a-zA-Z0-9_]+/status/\d+/?(video|photo)/\d+/?(\?.*)?$',
+            r'^https?://(mobile\.)?(twitter\.com|x\.com)/[a-zA-Z0-9_]+/status/\d+/?(\?.*)?$',
+            r'^https?://t\.co/[a-zA-Z0-9]+$',
+
         ]
         self.download_log = []
         

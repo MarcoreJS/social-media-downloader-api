@@ -35,6 +35,7 @@ class InstagramDownloader(MediaDownloader):
         self.session.headers.update(self.headers)
         self.instagram_pattern = re.compile(
             r'(https?://)?(www\.)?instagram\.com/(p|reel|tv|s|stories)/[a-zA-Z0-9_-]+/?'
+            # r'(https?://)?(www\.)?instagram\.com/(reel)/[a-zA-Z0-9_-]+/?'
         )
 
     def supports(self, url: str) -> bool:

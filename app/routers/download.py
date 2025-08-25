@@ -29,7 +29,7 @@ async def download_media(request: DownloadRequest):
     if not downloader:
         raise HTTPException(
             status_code=400,
-            detail="Unsupported URL. Currently only Instagram and TikTok is supported."
+            detail="Unsupported URL. Currently only TikTok and Instagram Reels are supported."
         )
     
     try:
